@@ -48,21 +48,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Configurar CORS
-origins = [
-    settings.frontend_url,
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
-# Filtrar valores vacíos o None
-origins = [o for o in origins if o]
-
+# Configurar CORS - permitir todos los orígenes en desarrollo
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Registrar routers
