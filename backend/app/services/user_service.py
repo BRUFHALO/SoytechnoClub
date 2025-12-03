@@ -243,3 +243,37 @@ class UserService:
     async def obtener_user_completo(self, cedula: str) -> Optional[dict]:
         """Obtiene información completa de un usuario incluyendo transacciones."""
         return await self.db.users.find_one({"cedula": cedula})
+    
+    async def obtener_todos_users(
+        self,
+        page: int = 1,
+        limit: int = 50
+    ) -> Tuple[List[dict], int]:
+        """
+        Obtiene todos los usuarios con paginación.
+        """
+        skip = (page - 1) * limit
+        
+        total = await self.db.users.count_documents({})
+        
+        cursor = self.db.users.find({}).sort(
+            "nombre", 1
+        ).skip(skip).limit(limit)
+        
+        users = []
+        async for user in cursor:
+            users.append({
+                "cedula": user["cedula"],
+                "nombre": user["nombre"],
+                "telefono": user.get("telefono"),
+                "correo": user.get("correo"),
+                "nivel": user["nivel"],
+                "puntos_totales": user["puntos_totales"],
+                "puntos_vigentes": user["puntos_vigentes"],
+                "puntos_listos_canje": user["puntos_listos_canje"],
+                "dolares_canjeables": user["dolares_canjeables"],
+                "total_gastado": user.get("total_gastado", 0),
+                "compras_totales": user.get("compras_totales", 0),
+            })
+        
+        return users, total

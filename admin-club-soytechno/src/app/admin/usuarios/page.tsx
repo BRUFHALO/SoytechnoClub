@@ -6,20 +6,20 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/Button";
 import { NivelBadge } from "@/components/ui/Badge";
 import {
-  Gift,
+  Users,
   Search,
   Download,
   RefreshCw,
-  Users,
-  DollarSign,
   ChevronLeft,
   ChevronRight,
+  Eye,
 } from "lucide-react";
 import { API_BASE_URL, formatNumber, formatCurrency } from "@/lib/utils";
-import { UserPuntosResponse, UsersListosCanje, NivelFidelizacion } from "@/types";
+import { UserListItem, UsersListResponse, NivelFidelizacion } from "@/types";
+import Link from "next/link";
 
-export default function CanjePage() {
-  const [usuarios, setUsuarios] = useState<UserPuntosResponse[]>([]);
+export default function UsuariosPage() {
+  const [usuarios, setUsuarios] = useState<UserListItem[]>([]);
   const [totalUsuarios, setTotalUsuarios] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +30,7 @@ export default function CanjePage() {
 
   // Paginación
   const [page, setPage] = useState(1);
-  const [limit] = useState(10);
+  const [limit] = useState(20);
 
   const fetchUsuarios = async () => {
     setIsLoading(true);
@@ -42,14 +42,13 @@ export default function CanjePage() {
         limit: limit.toString(),
       });
 
-      // Usar el nuevo endpoint de usuarios
-      const response = await fetch(`${API_BASE_URL}/api/users/listos-canje/?${params}`);
+      const response = await fetch(`${API_BASE_URL}/api/users/?${params}`);
 
       if (!response.ok) {
         throw new Error(`Error ${response.status}`);
       }
 
-      const data: UsersListosCanje = await response.json();
+      const data: UsersListResponse = await response.json();
       setUsuarios(data.users);
       setTotalUsuarios(data.total);
     } catch (err) {
@@ -74,27 +73,20 @@ export default function CanjePage() {
     return matchesSearch && matchesNivel;
   });
 
-  // Calcular totales
-  const totalDolaresCanjeables = filteredUsuarios.reduce(
-    (sum, u) => sum + u.dolares_canjeables,
-    0
-  );
-  const totalPuntosListos = filteredUsuarios.reduce(
-    (sum, u) => sum + u.puntos_listos_canje,
-    0
-  );
-
   const totalPages = Math.ceil(totalUsuarios / limit);
 
   const handleExportCSV = () => {
-    const headers = ["Cédula", "Nombre", "Nivel", "Puntos Vigentes", "Puntos Canje", "$ Canjeables"];
+    const headers = ["Cédula", "Nombre", "Teléfono", "Correo", "Nivel", "Puntos Totales", "Puntos Vigentes", "Total Gastado", "Compras"];
     const rows = filteredUsuarios.map((u) => [
       u.cedula,
       u.nombre,
+      u.telefono || "",
+      u.correo || "",
       u.nivel,
+      u.puntos_totales,
       u.puntos_vigentes,
-      u.puntos_listos_canje,
-      u.dolares_canjeables,
+      u.total_gastado,
+      u.compras_totales,
     ]);
 
     const csvContent = [headers, ...rows].map((row) => row.join(",")).join("\n");
@@ -102,16 +94,23 @@ export default function CanjePage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `usuarios_listos_canje_${new Date().toISOString().split("T")[0]}.csv`;
+    link.download = `usuarios_club_soytechno_${new Date().toISOString().split("T")[0]}.csv`;
     link.click();
     URL.revokeObjectURL(url);
+  };
+
+  // Estadísticas
+  const stats = {
+    totalUsuarios: totalUsuarios,
+    totalGastado: filteredUsuarios.reduce((sum, u) => sum + u.total_gastado, 0),
+    totalPuntos: filteredUsuarios.reduce((sum, u) => sum + u.puntos_totales, 0),
   };
 
   return (
     <>
       <Header
-        title="Canje de Puntos"
-        subtitle="Clientes con puntos disponibles para canjear"
+        title="Usuarios"
+        subtitle="Lista completa de usuarios del programa de fidelización"
       />
 
       <div className="p-6">
@@ -119,27 +118,13 @@ export default function CanjePage() {
         <div className="mb-6 grid gap-4 sm:grid-cols-3">
           <Card>
             <CardContent className="flex items-center gap-4 pt-6">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-amber-100">
-                <Users className="h-6 w-6 text-amber-600" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-cyan-100">
+                <Users className="h-6 w-6 text-cyan-600" />
               </div>
               <div>
-                <p className="text-sm text-slate-500">Usuarios Elegibles</p>
+                <p className="text-sm text-slate-500">Total Usuarios</p>
                 <p className="text-2xl font-bold text-slate-900">
-                  {formatNumber(filteredUsuarios.length)}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="flex items-center gap-4 pt-6">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-purple-100">
-                <Gift className="h-6 w-6 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-sm text-slate-500">Puntos Listos</p>
-                <p className="text-2xl font-bold text-slate-900">
-                  {formatNumber(totalPuntosListos)}
+                  {formatNumber(stats.totalUsuarios)}
                 </p>
               </div>
             </CardContent>
@@ -148,12 +133,26 @@ export default function CanjePage() {
           <Card>
             <CardContent className="flex items-center gap-4 pt-6">
               <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100">
-                <DollarSign className="h-6 w-6 text-green-600" />
+                <span className="text-xl font-bold text-green-600">$</span>
               </div>
               <div>
-                <p className="text-sm text-slate-500">Total $ Canjeables</p>
+                <p className="text-sm text-slate-500">Total Gastado</p>
                 <p className="text-2xl font-bold text-slate-900">
-                  {formatCurrency(totalDolaresCanjeables)}
+                  {formatCurrency(stats.totalGastado)}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="flex items-center gap-4 pt-6">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-purple-100">
+                <span className="text-lg font-bold text-purple-600">TB</span>
+              </div>
+              <div>
+                <p className="text-sm text-slate-500">Total Puntos</p>
+                <p className="text-2xl font-bold text-slate-900">
+                  {formatNumber(stats.totalPuntos)}
                 </p>
               </div>
             </CardContent>
@@ -205,85 +204,110 @@ export default function CanjePage() {
           </CardContent>
         </Card>
 
-        {/* Tabla de clientes */}
+        {/* Tabla de usuarios */}
         <Card>
           <CardHeader>
-            <CardTitle>Clientes Listos para Canje</CardTitle>
+            <CardTitle>Lista de Usuarios</CardTitle>
             <CardDescription>
-              Clientes con al menos 500 puntos vigentes (mínimo para canje)
+              {totalUsuarios} usuarios registrados en el programa
             </CardDescription>
           </CardHeader>
           <CardContent>
             {error && (
-              <div className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-700">
-                ⚠️ Mostrando datos de ejemplo. {error}
+              <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+                ⚠️ {error}
               </div>
             )}
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50">
-                    <th className="px-4 py-3 text-left font-medium text-slate-600">
-                      Cliente
-                    </th>
-                    <th className="px-4 py-3 text-left font-medium text-slate-600">
-                      Nivel
-                    </th>
-                    <th className="px-4 py-3 text-right font-medium text-slate-600">
-                      Puntos Vigentes
-                    </th>
-                    <th className="px-4 py-3 text-right font-medium text-slate-600">
-                      Puntos Canje
-                    </th>
-                    <th className="px-4 py-3 text-right font-medium text-slate-600">
-                      $ Canjeables
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {filteredUsuarios.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
-                        No se encontraron clientes con los filtros aplicados
-                      </td>
+            {isLoading ? (
+              <div className="py-12 text-center">
+                <RefreshCw className="mx-auto h-8 w-8 animate-spin text-cyan-600" />
+                <p className="mt-2 text-slate-500">Cargando usuarios...</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50">
+                      <th className="px-4 py-3 text-left font-medium text-slate-600">
+                        Usuario
+                      </th>
+                      <th className="px-4 py-3 text-left font-medium text-slate-600">
+                        Contacto
+                      </th>
+                      <th className="px-4 py-3 text-left font-medium text-slate-600">
+                        Nivel
+                      </th>
+                      <th className="px-4 py-3 text-right font-medium text-slate-600">
+                        Puntos
+                      </th>
+                      <th className="px-4 py-3 text-right font-medium text-slate-600">
+                        Gastado
+                      </th>
+                      <th className="px-4 py-3 text-right font-medium text-slate-600">
+                        Compras
+                      </th>
+                      <th className="px-4 py-3 text-center font-medium text-slate-600">
+                        Acciones
+                      </th>
                     </tr>
-                  ) : (
-                    filteredUsuarios.map((cliente) => (
-                      <tr key={cliente.cedula} className="hover:bg-slate-50">
-                        <td className="px-4 py-3">
-                          <p className="font-medium text-slate-900">{cliente.nombre}</p>
-                          <p className="text-xs text-slate-500">{cliente.cedula}</p>
-                        </td>
-                        <td className="px-4 py-3">
-                          <NivelBadge nivel={cliente.nivel} />
-                        </td>
-                        <td className="px-4 py-3 text-right font-medium text-slate-900">
-                          {formatNumber(cliente.puntos_vigentes)}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <span className="rounded bg-amber-100 px-2 py-1 font-medium text-amber-700">
-                            {formatNumber(cliente.puntos_listos_canje)}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <span className="font-bold text-green-600">
-                            {formatCurrency(cliente.dolares_canjeables)}
-                          </span>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredUsuarios.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
+                          No se encontraron usuarios
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    ) : (
+                      filteredUsuarios.map((usuario) => (
+                        <tr key={usuario.cedula} className="hover:bg-slate-50">
+                          <td className="px-4 py-3">
+                            <p className="font-medium text-slate-900">{usuario.nombre}</p>
+                            <p className="text-xs text-slate-500">{usuario.cedula}</p>
+                          </td>
+                          <td className="px-4 py-3">
+                            <p className="text-slate-600">{usuario.telefono || "-"}</p>
+                            <p className="text-xs text-slate-400">{usuario.correo || "-"}</p>
+                          </td>
+                          <td className="px-4 py-3">
+                            <NivelBadge nivel={usuario.nivel} />
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <p className="font-medium text-slate-900">
+                              {formatNumber(usuario.puntos_vigentes)}
+                            </p>
+                            <p className="text-xs text-slate-400">
+                              de {formatNumber(usuario.puntos_totales)}
+                            </p>
+                          </td>
+                          <td className="px-4 py-3 text-right font-medium text-green-600">
+                            {formatCurrency(usuario.total_gastado)}
+                          </td>
+                          <td className="px-4 py-3 text-right text-slate-600">
+                            {usuario.compras_totales}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <Link href={`/admin/clientes?cedula=${usuario.cedula}`}>
+                              <Button variant="ghost" size="sm">
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </Link>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             {/* Paginación */}
             {totalPages > 1 && (
               <div className="mt-4 flex items-center justify-between border-t border-slate-200 pt-4">
                 <p className="text-sm text-slate-500">
                   Mostrando {(page - 1) * limit + 1} -{" "}
-                  {Math.min(page * limit, totalUsuarios)} de {totalUsuarios} clientes
+                  {Math.min(page * limit, totalUsuarios)} de {totalUsuarios} usuarios
                 </p>
                 <div className="flex gap-2">
                   <Button
@@ -308,24 +332,6 @@ export default function CanjePage() {
                 </div>
               </div>
             )}
-          </CardContent>
-        </Card>
-
-        {/* Nota informativa */}
-        <Card className="mt-6">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-3 text-sm">
-              <Gift className="h-5 w-5 flex-shrink-0 text-cyan-600" />
-              <div>
-                <p className="font-medium text-slate-900">Reglas de Canje</p>
-                <ul className="mt-1 list-inside list-disc text-slate-600">
-                  <li>Mínimo 500 puntos para generar un cupón ($10)</li>
-                  <li>Cada 50 puntos = $1 acumulable</li>
-                  <li>Se requiere compra mínima de $80 para usar el cupón</li>
-                  <li>Los puntos tienen vigencia de 1 año desde la suscripción</li>
-                </ul>
-              </div>
-            </div>
           </CardContent>
         </Card>
       </div>

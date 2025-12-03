@@ -2,6 +2,75 @@
 
 export type NivelFidelizacion = "Kilobytes" | "MegaBytes" | "GigaBytes" | "TeraBytes";
 
+// ============ USUARIOS (nuevo modelo principal) ============
+
+export interface TransaccionResumen {
+  transaccion_id: string;
+  fecha: string;
+  tienda: string;
+  articulo: string;
+  cantidad: number;
+  monto: number;
+  puntos_generados: number;
+}
+
+export interface User {
+  _id?: string;
+  cedula: string;
+  nombre: string;
+  telefono?: string;
+  correo?: string;
+  fecha_registro: string;
+  fecha_suscripcion: string;
+  nivel: NivelFidelizacion;
+  puntos_totales: number;
+  puntos_vigentes: number;
+  puntos_listos_canje: number;
+  dolares_canjeables: number;
+  total_gastado: number;
+  compras_totales: number;
+  transacciones: TransaccionResumen[];
+  ultima_actualizacion: string;
+}
+
+export interface UserPuntosResponse {
+  cedula: string;
+  nombre: string;
+  nivel: NivelFidelizacion;
+  puntos_totales: number;
+  puntos_vigentes: number;
+  puntos_listos_canje: number;
+  dolares_canjeables: number;
+}
+
+export interface UserListItem {
+  cedula: string;
+  nombre: string;
+  telefono?: string;
+  correo?: string;
+  nivel: NivelFidelizacion;
+  puntos_totales: number;
+  puntos_vigentes: number;
+  puntos_listos_canje: number;
+  dolares_canjeables: number;
+  total_gastado: number;
+  compras_totales: number;
+}
+
+export interface UsersListResponse {
+  total: number;
+  page: number;
+  limit: number;
+  users: UserListItem[];
+}
+
+export interface UsersListosCanje {
+  total: number;
+  users: UserPuntosResponse[];
+}
+
+// ============ LEGACY (compatibilidad) ============
+
 export interface Cliente {
   _id?: string;
   cedula: string;
@@ -34,9 +103,12 @@ export interface ClientesListosCanje {
   clientes: ClientePuntosResponse[];
 }
 
+// ============ RESPUESTAS API ============
+
 export interface UploadResponse {
   registros_procesados: number;
   clientes_actualizados: number;
+  usuarios_actualizados: number;
   errores: string[];
 }
 

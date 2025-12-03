@@ -38,6 +38,32 @@ def format_user_dates(user: dict) -> dict:
     return user
 
 
+def limpiar_cedula(cedula: str) -> str:
+    """Elimina espacios en blanco de la cédula."""
+    return cedula.strip().replace(" ", "")
+
+
+@router.get("/", response_model=dict)
+async def obtener_todos_usuarios(
+    page: int = Query(1, ge=1, description="Número de página"),
+    limit: int = Query(50, ge=1, le=500, description="Registros por página"),
+):
+    """
+    Obtiene todos los usuarios con paginación.
+    """
+    db = get_database()
+    service = UserService(db)
+    
+    users, total = await service.obtener_todos_users(page, limit)
+    
+    return {
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "users": users
+    }
+
+
 @router.get("/puntos/{cedula}", response_model=UserPuntosResponse)
 async def obtener_puntos_usuario(cedula: str):
     """
@@ -52,6 +78,9 @@ async def obtener_puntos_usuario(cedula: str):
     - Puntos listos para canjear (múltiplos de 500)
     - Equivalente en dólares ($)
     """
+    # Limpiar cédula
+    cedula = limpiar_cedula(cedula)
+    
     db = get_database()
     service = UserService(db)
     
@@ -71,6 +100,9 @@ async def obtener_usuario_completo(cedula: str):
     """
     Obtiene información completa de un usuario incluyendo todas sus transacciones.
     """
+    # Limpiar cédula
+    cedula = limpiar_cedula(cedula)
+    
     db = get_database()
     service = UserService(db)
     

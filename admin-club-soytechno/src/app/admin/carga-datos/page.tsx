@@ -206,7 +206,7 @@ export default function CargaDatosPage() {
                     <CheckCircle className="h-5 w-5" />
                     <p className="font-medium">¡Archivo procesado exitosamente!</p>
                   </div>
-                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
                     <div className="rounded bg-white p-3">
                       <p className="text-sm text-slate-500">Registros procesados</p>
                       <p className="text-xl font-bold text-slate-900">
@@ -214,8 +214,14 @@ export default function CargaDatosPage() {
                       </p>
                     </div>
                     <div className="rounded bg-white p-3">
-                      <p className="text-sm text-slate-500">Clientes actualizados</p>
-                      <p className="text-xl font-bold text-slate-900">
+                      <p className="text-sm text-slate-500">Usuarios actualizados</p>
+                      <p className="text-xl font-bold text-cyan-600">
+                        {formatNumber(uploadResult.usuarios_actualizados || 0)}
+                      </p>
+                    </div>
+                    <div className="rounded bg-white p-3">
+                      <p className="text-sm text-slate-500">Clientes (legacy)</p>
+                      <p className="text-xl font-bold text-slate-600">
                         {formatNumber(uploadResult.clientes_actualizados)}
                       </p>
                     </div>

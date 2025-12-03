@@ -6,9 +6,9 @@ import {
   LayoutDashboard,
   Upload,
   Users,
+  UserSearch,
   Gift,
   Settings,
-  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -24,9 +24,14 @@ const menuItems = [
     icon: Upload,
   },
   {
-    title: "Clientes",
-    href: "/admin/clientes",
+    title: "Usuarios",
+    href: "/admin/usuarios",
     icon: Users,
+  },
+  {
+    title: "Consultar Cliente",
+    href: "/admin/clientes",
+    icon: UserSearch,
   },
   {
     title: "Canje de Puntos",

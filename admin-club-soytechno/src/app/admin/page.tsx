@@ -9,38 +9,88 @@ import {
   TrendingUp,
   Gift,
   DollarSign,
-  ArrowUpRight,
-  ArrowDownRight,
+  RefreshCw,
 } from "lucide-react";
-import { formatNumber, formatCurrency } from "@/lib/utils";
-import { NivelFidelizacion } from "@/types";
+import { API_BASE_URL, formatNumber, formatCurrency } from "@/lib/utils";
+import { NivelFidelizacion, UserListItem, UserPuntosResponse } from "@/types";
 
-// Datos de ejemplo para el dashboard (se reemplazarán con datos reales del API)
-const mockStats = {
-  totalClientes: 1250,
-  clientesNuevosMes: 85,
-  puntosTotales: 2450000,
-  puntosCanjeados: 180000,
-  clientesListosCanje: 156,
-  dolaresDisponiblesCanje: 3120,
-};
+interface DashboardStats {
+  totalUsuarios: number;
+  puntosTotales: number;
+  usuariosListosCanje: number;
+  dolaresDisponiblesCanje: number;
+}
 
-const mockClientesPorNivel = [
-  { nivel: "Kilobytes" as NivelFidelizacion, cantidad: 650, porcentaje: 52 },
-  { nivel: "MegaBytes" as NivelFidelizacion, cantidad: 380, porcentaje: 30.4 },
-  { nivel: "GigaBytes" as NivelFidelizacion, cantidad: 170, porcentaje: 13.6 },
-  { nivel: "TeraBytes" as NivelFidelizacion, cantidad: 50, porcentaje: 4 },
-];
-
-const mockUltimosClientes = [
-  { cedula: "V-12345678", nombre: "Juan Pérez", nivel: "GigaBytes" as NivelFidelizacion, puntos: 3500 },
-  { cedula: "V-87654321", nombre: "María García", nivel: "MegaBytes" as NivelFidelizacion, puntos: 1200 },
-  { cedula: "V-11223344", nombre: "Carlos López", nivel: "TeraBytes" as NivelFidelizacion, puntos: 8500 },
-  { cedula: "V-55667788", nombre: "Ana Rodríguez", nivel: "Kilobytes" as NivelFidelizacion, puntos: 250 },
-  { cedula: "V-99887766", nombre: "Pedro Martínez", nivel: "MegaBytes" as NivelFidelizacion, puntos: 980 },
-];
+interface NivelStats {
+  nivel: NivelFidelizacion;
+  cantidad: number;
+  porcentaje: number;
+}
 
 export default function DashboardPage() {
+  const [stats, setStats] = useState<DashboardStats>({
+    totalUsuarios: 0,
+    puntosTotales: 0,
+    usuariosListosCanje: 0,
+    dolaresDisponiblesCanje: 0,
+  });
+  const [usuariosPorNivel, setUsuariosPorNivel] = useState<NivelStats[]>([]);
+  const [ultimosUsuarios, setUltimosUsuarios] = useState<UserListItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    setIsLoading(true);
+    try {
+      // Obtener todos los usuarios
+      const usersRes = await fetch(`${API_BASE_URL}/api/users/?page=1&limit=500`);
+      const usersData = await usersRes.json();
+      
+      // Obtener usuarios listos para canje
+      const canjeRes = await fetch(`${API_BASE_URL}/api/users/listos-canje/?page=1&limit=100`);
+      const canjeData = await canjeRes.json();
+
+      const usuarios: UserListItem[] = usersData.users || [];
+      const usuariosCanje: UserPuntosResponse[] = canjeData.users || [];
+
+      // Calcular estadísticas
+      const totalPuntos = usuarios.reduce((sum, u) => sum + u.puntos_totales, 0);
+      const totalDolaresCanje = usuariosCanje.reduce((sum, u) => sum + u.dolares_canjeables, 0);
+
+      setStats({
+        totalUsuarios: usersData.total || 0,
+        puntosTotales: totalPuntos,
+        usuariosListosCanje: canjeData.total || 0,
+        dolaresDisponiblesCanje: totalDolaresCanje,
+      });
+
+      // Calcular distribución por nivel
+      const niveles: NivelFidelizacion[] = ["Kilobytes", "MegaBytes", "GigaBytes", "TeraBytes"];
+      const nivelCounts = niveles.map(nivel => ({
+        nivel,
+        cantidad: usuarios.filter(u => u.nivel === nivel).length,
+        porcentaje: usuarios.length > 0 
+          ? (usuarios.filter(u => u.nivel === nivel).length / usuarios.length) * 100 
+          : 0,
+      }));
+      setUsuariosPorNivel(nivelCounts);
+
+      // Últimos usuarios (ordenados por puntos)
+      const topUsuarios = [...usuarios]
+        .sort((a, b) => b.puntos_vigentes - a.puntos_vigentes)
+        .slice(0, 5);
+      setUltimosUsuarios(topUsuarios);
+
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <>
       <Header
@@ -49,6 +99,14 @@ export default function DashboardPage() {
       />
 
       <div className="p-6">
+        {/* Loading state */}
+        {isLoading && (
+          <div className="mb-6 flex items-center justify-center py-12">
+            <RefreshCw className="h-8 w-8 animate-spin text-cyan-600" />
+            <span className="ml-2 text-slate-500">Cargando datos...</span>
+          </div>
+        )}
+
         {/* KPIs principales */}
         <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card>
@@ -57,14 +115,11 @@ export default function DashboardPage() {
                 <Users className="h-6 w-6 text-cyan-600" />
               </div>
               <div>
-                <p className="text-sm text-slate-500">Total Clientes</p>
+                <p className="text-sm text-slate-500">Total Usuarios</p>
                 <p className="text-2xl font-bold text-slate-900">
-                  {formatNumber(mockStats.totalClientes)}
+                  {formatNumber(stats.totalUsuarios)}
                 </p>
-                <p className="flex items-center text-xs text-green-600">
-                  <ArrowUpRight className="h-3 w-3" />
-                  +{mockStats.clientesNuevosMes} este mes
-                </p>
+                <p className="text-xs text-slate-500">registrados en el programa</p>
               </div>
             </CardContent>
           </Card>
@@ -77,7 +132,7 @@ export default function DashboardPage() {
               <div>
                 <p className="text-sm text-slate-500">Puntos Acumulados</p>
                 <p className="text-2xl font-bold text-slate-900">
-                  {formatNumber(mockStats.puntosTotales)}
+                  {formatNumber(stats.puntosTotales)}
                 </p>
                 <p className="text-xs text-slate-500">TechnoBits totales</p>
               </div>
@@ -92,9 +147,9 @@ export default function DashboardPage() {
               <div>
                 <p className="text-sm text-slate-500">Listos para Canje</p>
                 <p className="text-2xl font-bold text-slate-900">
-                  {formatNumber(mockStats.clientesListosCanje)}
+                  {formatNumber(stats.usuariosListosCanje)}
                 </p>
-                <p className="text-xs text-slate-500">clientes con ≥500 pts</p>
+                <p className="text-xs text-slate-500">usuarios con ≥500 pts</p>
               </div>
             </CardContent>
           </Card>
@@ -107,7 +162,7 @@ export default function DashboardPage() {
               <div>
                 <p className="text-sm text-slate-500">$ Canjeables</p>
                 <p className="text-2xl font-bold text-slate-900">
-                  {formatCurrency(mockStats.dolaresDisponiblesCanje)}
+                  {formatCurrency(stats.dolaresDisponiblesCanje)}
                 </p>
                 <p className="text-xs text-slate-500">disponibles en cupones</p>
               </div>
@@ -115,7 +170,7 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* Sección de distribución y últimos clientes */}
+        {/* Sección de distribución y top usuarios */}
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Distribución por nivel */}
           <Card>
@@ -124,16 +179,16 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {mockClientesPorNivel.map((item) => (
+                {usuariosPorNivel.map((item) => (
                   <div key={item.nivel} className="flex items-center gap-4">
                     <NivelBadge nivel={item.nivel} className="w-24 justify-center" />
                     <div className="flex-1">
                       <div className="mb-1 flex justify-between text-sm">
                         <span className="text-slate-600">
-                          {formatNumber(item.cantidad)} clientes
+                          {formatNumber(item.cantidad)} usuarios
                         </span>
                         <span className="font-medium text-slate-900">
-                          {item.porcentaje}%
+                          {item.porcentaje.toFixed(1)}%
                         </span>
                       </div>
                       <div className="h-2 overflow-hidden rounded-full bg-slate-100">
@@ -149,10 +204,10 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          {/* Últimos clientes actualizados */}
+          {/* Top usuarios por puntos */}
           <Card>
             <CardHeader>
-              <CardTitle>Últimos Clientes Actualizados</CardTitle>
+              <CardTitle>Top Usuarios por Puntos</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
@@ -160,7 +215,7 @@ export default function DashboardPage() {
                   <thead>
                     <tr className="border-b border-slate-200">
                       <th className="pb-3 text-left font-medium text-slate-500">
-                        Cliente
+                        Usuario
                       </th>
                       <th className="pb-3 text-left font-medium text-slate-500">
                         Nivel
@@ -171,24 +226,32 @@ export default function DashboardPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {mockUltimosClientes.map((cliente) => (
-                      <tr key={cliente.cedula}>
-                        <td className="py-3">
-                          <p className="font-medium text-slate-900">
-                            {cliente.nombre}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            {cliente.cedula}
-                          </p>
-                        </td>
-                        <td className="py-3">
-                          <NivelBadge nivel={cliente.nivel} />
-                        </td>
-                        <td className="py-3 text-right font-medium text-slate-900">
-                          {formatNumber(cliente.puntos)}
+                    {ultimosUsuarios.length === 0 ? (
+                      <tr>
+                        <td colSpan={3} className="py-8 text-center text-slate-500">
+                          No hay usuarios registrados
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      ultimosUsuarios.map((usuario) => (
+                        <tr key={usuario.cedula}>
+                          <td className="py-3">
+                            <p className="font-medium text-slate-900">
+                              {usuario.nombre}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              {usuario.cedula}
+                            </p>
+                          </td>
+                          <td className="py-3">
+                            <NivelBadge nivel={usuario.nivel} />
+                          </td>
+                          <td className="py-3 text-right font-medium text-slate-900">
+                            {formatNumber(usuario.puntos_vigentes)}
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
